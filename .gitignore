@@ -7,3 +7,4 @@ linux_report.json
 ubuntu_auth.log
 .DS_Store
 .vscode/
+clean_report.json
