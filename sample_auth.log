@@ -1,0 +1,8 @@
+
+Oct 27 08:10:01 ubuntu sshd[1234]: Failed password for admin from 192.168.56.10 port 52344 ssh2
+Oct 27 08:10:04 ubuntu sshd[1234]: Failed password for admin from 192.168.56.10 port 52345 ssh2
+Oct 27 08:10:07 ubuntu sshd[1234]: Failed password for admin from 192.168.56.10 port 52346 ssh2
+Oct 27 08:11:02 ubuntu sshd[1234]: Failed password for user1 from 192.168.56.20 port 52347 ssh2
+Oct 27 08:12:01 ubuntu sshd[1234]: Accepted password for student from 192.168.56.30 port 52348 ssh2
+Oct 27 08:13:01 ubuntu sshd[1234]: Failed password for guest from 192.168.56.20 port 52349 ssh2
+Oct 27 08:12:10 ubuntu sshd[1234]: Failed password for manager from 192.168.56.20 port 52350 ssh2

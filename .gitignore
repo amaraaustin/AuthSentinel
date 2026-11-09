@@ -1,0 +1,9 @@
+
+__pycache__/
+*.pyc
+analyzer_backup.py
+security_report.json
+linux_report.json
+ubuntu_auth.log
+.DS_Store
+.vscode/
