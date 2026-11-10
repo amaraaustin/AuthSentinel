@@ -61,7 +61,11 @@ def parse_logs(log_file):
     return events
 
 
-def detect_brute_force(events):
+def detect_brute_force(
+    events,
+    threshold=ATTEMPT_THRESHOLD,
+    window_seconds=TIME_WINDOW_SECONDS
+):
     failed_attempts = {}
     alerts = []
 
@@ -74,18 +78,18 @@ def detect_brute_force(events):
     for (ip, username), times in failed_attempts.items():
         times.sort()
 
-        for i in range(len(times) - ATTEMPT_THRESHOLD + 1):
+        for i in range(len(times) - threshold + 1):
             first_attempt = times[i]
-            last_attempt = times[i + ATTEMPT_THRESHOLD - 1]
+            last_attempt = times[i + threshold - 1]
             difference = last_attempt - first_attempt
 
-            if difference <= timedelta(seconds=TIME_WINDOW_SECONDS):
+            if difference <= timedelta(seconds=window_seconds):
                 alerts.append({
                     "type": "brute_force",
                     "severity": "MEDIUM",
                     "ip": ip,
                     "username": username,
-                    "attempts": ATTEMPT_THRESHOLD,
+                    "attempts": threshold,
                     "duration": difference.total_seconds(),
                     "first_observed": first_attempt.isoformat() + "Z",
                     "last_observed": last_attempt.isoformat() + "Z",
@@ -100,7 +104,11 @@ def detect_brute_force(events):
     return alerts
 
 
-def detect_password_spraying(events):
+def detect_password_spraying(
+    events,
+    threshold=SPRAY_USER_THRESHOLD,
+    window_seconds=SPRAY_WINDOW_SECONDS
+):
     spray_attempts = {}
     alerts = []
 
@@ -121,13 +129,13 @@ def detect_password_spraying(events):
 
             for login_time, username in attempts[start:]:
                 if login_time - start_time > timedelta(
-                    seconds=SPRAY_WINDOW_SECONDS
+                    seconds=window_seconds
                 ):
                     break
 
                 usernames.add(username)
 
-                if len(usernames) >= SPRAY_USER_THRESHOLD:
+                if len(usernames) >= threshold:
                     alerts.append({
                         "type": "password_spraying",
                         "severity": "MEDIUM",
@@ -148,6 +156,17 @@ def detect_password_spraying(events):
                 break
 
     return alerts
+
+
+def positive_integer(value):
+    number = int(value)
+
+    if number < 1:
+        raise argparse.ArgumentTypeError(
+            "Value must be a positive integer"
+        )
+
+    return number
 
 
 def main():
@@ -173,6 +192,34 @@ def main():
         help="Save the security report as a JSON file"
     )
 
+    parser.add_argument(
+        "--brute-threshold",
+        type=positive_integer,
+        default=ATTEMPT_THRESHOLD,
+        help="Failed attempts required for brute-force detection"
+    )
+
+    parser.add_argument(
+        "--brute-window",
+        type=positive_integer,
+        default=TIME_WINDOW_SECONDS,
+        help="Brute-force detection window in seconds"
+    )
+
+    parser.add_argument(
+        "--spray-threshold",
+        type=positive_integer,
+        default=SPRAY_USER_THRESHOLD,
+        help="Unique accounts required for password spraying"
+    )
+
+    parser.add_argument(
+        "--spray-window",
+        type=positive_integer,
+        default=SPRAY_WINDOW_SECONDS,
+        help="Password-spraying detection window in seconds"
+    )
+
     args = parser.parse_args()
 
     try:
@@ -184,13 +231,26 @@ def main():
     except (FileNotFoundError, PermissionError, ValueError, KeyError) as error:
         parser.error(str(error))
 
-    brute_force_alerts = detect_brute_force(events)
-    spraying_alerts = detect_password_spraying(events)
+    brute_force_alerts = detect_brute_force(
+        events,
+        threshold=args.brute_threshold,
+        window_seconds=args.brute_window
+    )
+
+    spraying_alerts = detect_password_spraying(
+        events,
+        threshold=args.spray_threshold,
+        window_seconds=args.spray_window
+    )
 
     print("ATTACK-AND-DETECT SECURITY REPORT")
     print("---------------------------------")
     print(f"Log format: {args.format}")
     print(f"Failed authentication events: {len(events)}")
+    print(f"Brute-force threshold: {args.brute_threshold}")
+    print(f"Brute-force window: {args.brute_window} seconds")
+    print(f"Spraying threshold: {args.spray_threshold}")
+    print(f"Spraying window: {args.spray_window} seconds")
 
     print("\nBRUTE-FORCE DETECTION")
     print("---------------------")
