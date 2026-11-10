@@ -67,11 +67,9 @@ def detect_brute_force(events):
 
     for event in events:
         key = (event["ip"], event["username"])
-
-        if key not in failed_attempts:
-            failed_attempts[key] = []
-
-        failed_attempts[key].append(event["timestamp"])
+        failed_attempts.setdefault(key, []).append(
+            event["timestamp"]
+        )
 
     for (ip, username), times in failed_attempts.items():
         times.sort()
@@ -84,10 +82,18 @@ def detect_brute_force(events):
             if difference <= timedelta(seconds=TIME_WINDOW_SECONDS):
                 alerts.append({
                     "type": "brute_force",
+                    "severity": "MEDIUM",
                     "ip": ip,
                     "username": username,
                     "attempts": ATTEMPT_THRESHOLD,
-                    "duration": difference.total_seconds()
+                    "duration": difference.total_seconds(),
+                    "first_observed": first_attempt.isoformat() + "Z",
+                    "last_observed": last_attempt.isoformat() + "Z",
+                    "recommended_action": (
+                        "Review authentication activity from this IP, "
+                        "check for subsequent successful logins, and "
+                        "investigate the targeted account."
+                    )
                 })
                 break
 
@@ -99,12 +105,9 @@ def detect_password_spraying(events):
     alerts = []
 
     for event in events:
-        ip = event["ip"]
-
-        if ip not in spray_attempts:
-            spray_attempts[ip] = []
-
-        spray_attempts[ip].append((
+        spray_attempts.setdefault(
+            event["ip"], []
+        ).append((
             event["timestamp"],
             event["username"]
         ))
@@ -127,9 +130,17 @@ def detect_password_spraying(events):
                 if len(usernames) >= SPRAY_USER_THRESHOLD:
                     alerts.append({
                         "type": "password_spraying",
+                        "severity": "MEDIUM",
                         "ip": ip,
                         "unique_accounts": len(usernames),
-                        "usernames": sorted(usernames)
+                        "usernames": sorted(usernames),
+                        "first_observed": start_time.isoformat() + "Z",
+                        "last_observed": login_time.isoformat() + "Z",
+                        "recommended_action": (
+                            "Investigate authentication attempts across "
+                            "the targeted accounts, review successful "
+                            "logins, and assess the source IP."
+                        )
                     })
                     break
 
@@ -188,11 +199,15 @@ def main():
         print("No brute-force alerts detected.")
 
     for alert in brute_force_alerts:
-        print("ALERT: Possible brute-force attack")
+        print("\nALERT: Possible brute-force attack")
+        print(f"Severity: {alert['severity']}")
         print(f"Source IP: {alert['ip']}")
         print(f"Target account: {alert['username']}")
         print(f"Failed attempts: {alert['attempts']}")
         print(f"Duration: {alert['duration']} seconds")
+        print(f"First observed: {alert['first_observed']}")
+        print(f"Last observed: {alert['last_observed']}")
+        print(f"Recommended action: {alert['recommended_action']}")
 
     print("\nPASSWORD SPRAYING DETECTION")
     print("---------------------------")
@@ -201,10 +216,14 @@ def main():
         print("No password-spraying alerts detected.")
 
     for alert in spraying_alerts:
-        print("ALERT: Possible password spraying")
+        print("\nALERT: Possible password spraying")
+        print(f"Severity: {alert['severity']}")
         print(f"Source IP: {alert['ip']}")
         print(f"Unique accounts: {alert['unique_accounts']}")
         print(f"Usernames: {', '.join(alert['usernames'])}")
+        print(f"First observed: {alert['first_observed']}")
+        print(f"Last observed: {alert['last_observed']}")
+        print(f"Recommended action: {alert['recommended_action']}")
 
     if args.output:
         try:
