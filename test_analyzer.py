@@ -1,7 +1,10 @@
 
-import unittest
-import tempfile
+import json
 import os
+import subprocess
+import sys
+import tempfile
+import unittest
 from datetime import datetime, timedelta
 
 from analyzer import (
@@ -9,6 +12,7 @@ from analyzer import (
     detect_brute_force,
     detect_password_spraying
 )
+from reporter import export_report
 
 
 class TestAttackDetection(unittest.TestCase):
@@ -109,6 +113,171 @@ class TestAttackDetection(unittest.TestCase):
             self.assertEqual(len(events), 3)
             self.assertEqual(len(alerts), 1)
             self.assertEqual(alerts[0]["ip"], "192.168.219.132")
+        finally:
+            os.remove(filename)
+
+    def test_brute_force_exact_window_boundary(self):
+        events = [
+            self.make_event("192.168.1.10", "admin", 0),
+            self.make_event("192.168.1.10", "admin", 30),
+            self.make_event("192.168.1.10", "admin", 60)
+        ]
+
+        alerts = detect_brute_force(events)
+
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]["duration"], 60)
+
+    def test_brute_force_outside_window(self):
+        events = [
+            self.make_event("192.168.1.10", "admin", 0),
+            self.make_event("192.168.1.10", "admin", 30),
+            self.make_event("192.168.1.10", "admin", 61)
+        ]
+
+        self.assertEqual(len(detect_brute_force(events)), 0)
+
+    def test_custom_brute_force_threshold(self):
+        events = [
+            self.make_event("192.168.1.10", "admin", 0),
+            self.make_event("192.168.1.10", "admin", 5),
+            self.make_event("192.168.1.10", "admin", 10)
+        ]
+
+        self.assertEqual(
+            len(detect_brute_force(events, threshold=5)), 0
+        )
+        self.assertEqual(
+            len(detect_brute_force(events, threshold=3)), 1
+        )
+
+    def test_spraying_exact_window_boundary(self):
+        events = [
+            self.make_event("192.168.1.20", "admin", 0),
+            self.make_event("192.168.1.20", "guest", 60),
+            self.make_event("192.168.1.20", "manager", 120)
+        ]
+
+        self.assertEqual(
+            len(detect_password_spraying(events)), 1
+        )
+
+    def test_spraying_outside_window(self):
+        events = [
+            self.make_event("192.168.1.20", "admin", 0),
+            self.make_event("192.168.1.20", "guest", 60),
+            self.make_event("192.168.1.20", "manager", 121)
+        ]
+
+        self.assertEqual(
+            len(detect_password_spraying(events)), 0
+        )
+
+    def test_custom_spraying_threshold(self):
+        events = [
+            self.make_event("192.168.1.20", "admin", 0),
+            self.make_event("192.168.1.20", "guest", 20),
+            self.make_event("192.168.1.20", "manager", 40)
+        ]
+
+        self.assertEqual(
+            len(detect_password_spraying(events, threshold=5)), 0
+        )
+        self.assertEqual(
+            len(detect_password_spraying(events, threshold=3)), 1
+        )
+
+    def test_empty_events(self):
+        self.assertEqual(detect_brute_force([]), [])
+        self.assertEqual(detect_password_spraying([]), [])
+
+    def test_investigation_metadata(self):
+        events = [
+            self.make_event("192.168.1.10", "admin", 0),
+            self.make_event("192.168.1.10", "admin", 5),
+            self.make_event("192.168.1.10", "admin", 10)
+        ]
+
+        alert = detect_brute_force(events)[0]
+
+        self.assertEqual(alert["severity"], "MEDIUM")
+        self.assertEqual(
+            alert["first_observed"],
+            "2026-10-27T08:00:00Z"
+        )
+        self.assertEqual(
+            alert["last_observed"],
+            "2026-10-27T08:00:10Z"
+        )
+        self.assertTrue(alert["recommended_action"])
+
+    def test_json_report_export(self):
+        events = [
+            self.make_event("192.168.1.10", "admin", 0),
+            self.make_event("192.168.1.10", "admin", 5),
+            self.make_event("192.168.1.10", "admin", 10)
+        ]
+
+        brute_alerts = detect_brute_force(events)
+
+        with tempfile.TemporaryDirectory() as directory:
+            filename = os.path.join(directory, "report.json")
+
+            export_report(
+                events,
+                brute_alerts,
+                [],
+                "linux",
+                filename
+            )
+
+            with open(filename, encoding="utf-8") as file:
+                report = json.load(file)
+
+            self.assertEqual(report["total_failed_logins"], 3)
+            self.assertEqual(report["summary"]["brute_force_alerts"], 1)
+            self.assertEqual(report["summary"]["password_spraying_alerts"], 0)
+            self.assertEqual(report["alerts"][0]["severity"], "MEDIUM")
+            self.assertIn(
+                "recommended_action",
+                report["alerts"][0]
+            )
+
+    def test_invalid_cli_threshold(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "analyzer.py"
+                ),
+                "--file",
+                "sample_auth.log",
+                "--brute-threshold",
+                "0"
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "positive integer",
+            result.stderr
+        )
+
+    def test_empty_log_file(self):
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False
+        ) as file:
+            filename = file.name
+
+        try:
+            events = parse_logs(filename)
+
+            self.assertEqual(events, [])
+            self.assertEqual(detect_brute_force(events), [])
+            self.assertEqual(detect_password_spraying(events), [])
         finally:
             os.remove(filename)
 
