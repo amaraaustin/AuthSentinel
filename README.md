@@ -5,13 +5,13 @@ A Python-based authentication log analyzer that detects potential brute-force at
 
 ## Overview
 
-I built AuthSentinel to get more hands-on experience with security monitoring, log analysis, and detection engineering.
+I built AuthSentinel to get more hands-on experience with security monitoring, log analysis and detection engineering.
 
-The project focuses on two common authentication attacks: brute force, where repeated login attempts target the same account, and password spraying, where an attacker attempts to access multiple accounts.
+The project focuses on two common authentication attacks: brute force, where repeated login attempts target the same account and password spraying, where an attacker attempts to access multiple accounts.
 
-The tool reads authentication logs, extracts failed login events, and applies time-based detection rules to identify suspicious patterns. It then generates alerts with information that would be useful during a security investigation.
+The tool reads authentication logs, extracts failed login events and applies time-based detection rules to identify suspicious patterns. It then generates alerts with information that would be useful during a security investigation.
 
-I wanted to go beyond simply identifying failed logins, so I included configurable detection thresholds, JSON reporting, and automated tests to check that the detection logic works as expected.
+I wanted to go beyond simply identifying failed logins, so I included configurable detection thresholds, JSON reporting and automated tests to check that the detection logic works as expected.
 
 ## Features
 
@@ -19,7 +19,7 @@ I wanted to go beyond simply identifying failed logins, so I included configurab
 - Processes Windows Security Event ID 4625 records from CSV files
 - Detects potential brute-force attacks and password spraying
 - Supports configurable detection thresholds and time windows
-- Generates alerts with source IP addresses, affected accounts, and timestamps
+- Generates alerts with source IP addresses, affected accounts and timestamps
 - Includes recommended investigation actions
 - Exports findings to JSON
 - Handles malformed log entries without stopping the entire analysis
