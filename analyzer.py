@@ -19,44 +19,51 @@ def parse_logs(log_file):
             if "Failed password" not in line or "sshd[" not in line:
                 continue
 
-            words = line.split()
+            try:
+                words = line.split()
 
-            ip_address = words[words.index("from") + 1]
-            username_position = words.index("for") + 1
+                ip_address = words[words.index("from") + 1]
+                username_position = words.index("for") + 1
 
-            if words[username_position] == "invalid":
-                username = words[username_position + 2]
-            else:
-                username = words[username_position]
+                if words[username_position] == "invalid":
+                    username = words[username_position + 2]
+                else:
+                    username = words[username_position]
 
-            if words[0][:4].isdigit() and "T" in words[0]:
-                login_time = datetime.fromisoformat(
-                    words[0].replace("Z", "+00:00")
+                if words[0][:4].isdigit() and "T" in words[0]:
+                    login_time = datetime.fromisoformat(
+                        words[0].replace("Z", "+00:00")
+                    )
+
+                    if login_time.tzinfo is not None:
+                        login_time = login_time.astimezone(
+                            timezone.utc
+                        ).replace(tzinfo=None)
+                else:
+                    timestamp = (
+                        f"{datetime.now().year} "
+                        + " ".join(words[:3])
+                    )
+                    login_time = datetime.strptime(
+                        timestamp, "%Y %b %d %H:%M:%S"
+                    )
+
+                repeated = re.search(
+                    r"message repeated (\d+) times:",
+                    line
                 )
 
-                if login_time.tzinfo is not None:
-                    login_time = login_time.astimezone(
-                        timezone.utc
-                    ).replace(tzinfo=None)
-            else:
-                timestamp = "2026 " + " ".join(words[:3])
-                login_time = datetime.strptime(
-                    timestamp, "%Y %b %d %H:%M:%S"
-                )
+                count = int(repeated.group(1)) if repeated else 1
 
-            repeated = re.search(
-                r"message repeated (\d+) times:",
-                line
-            )
+                for _ in range(count):
+                    events.append({
+                        "ip": ip_address,
+                        "username": username,
+                        "timestamp": login_time
+                    })
 
-            count = int(repeated.group(1)) if repeated else 1
-
-            for _ in range(count):
-                events.append({
-                    "ip": ip_address,
-                    "username": username,
-                    "timestamp": login_time
-                })
+            except (ValueError, IndexError, TypeError):
+                continue
 
     return events
 
@@ -159,7 +166,12 @@ def detect_password_spraying(
 
 
 def positive_integer(value):
-    number = int(value)
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "Value must be a positive integer"
+        )
 
     if number < 1:
         raise argparse.ArgumentTypeError(
