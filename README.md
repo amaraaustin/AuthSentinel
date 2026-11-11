@@ -1,11 +1,11 @@
 
-# Attack-and-Detect
+# AuthSentinel
 
 A Python-based authentication log analyzer that detects potential brute-force attacks and password spraying in Linux SSH logs and Windows Security Event CSV files.
 
 ## Overview
 
-I built Attack-and-Detect to get more hands-on experience with security monitoring, log analysis, and detection engineering.
+I built AuthSentinel to get more hands-on experience with security monitoring, log analysis, and detection engineering.
 
 The project focuses on two common authentication attacks: brute force, where repeated login attempts target the same account, and password spraying, where an attacker attempts to access multiple accounts.
 

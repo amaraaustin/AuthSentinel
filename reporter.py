@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 def export_report(events, brute_force_alerts, spraying_alerts, log_format, filename):
     report = {
-        "tool": "Attack-and-Detect",
+        "tool": "AuthSentinel",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "log_format": log_format,
         "total_failed_logins": len(events),

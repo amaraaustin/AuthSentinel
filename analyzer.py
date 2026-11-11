@@ -255,7 +255,7 @@ def main():
         window_seconds=args.spray_window
     )
 
-    print("ATTACK-AND-DETECT SECURITY REPORT")
+    print("AUTHSENTINEL SECURITY REPORT")
     print("---------------------------------")
     print(f"Log format: {args.format}")
     print(f"Failed authentication events: {len(events)}")
