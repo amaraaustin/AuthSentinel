@@ -70,6 +70,35 @@ class TestAttackDetection(unittest.TestCase):
 
         self.assertEqual(len(alerts), 0)
 
+
+
+    def test_december_january_rollover(self):
+        log_lines = (
+            "Dec 31 23:59:58 server sshd[100]: "
+            "Failed password for admin from 192.0.2.1 port 22 ssh2\n"
+            "Jan  1 00:00:02 server sshd[100]: "
+            "Failed password for admin from 192.0.2.1 port 22 ssh2\n"
+        )
+
+        with tempfile.NamedTemporaryFile(
+            mode="w", delete=False
+        ) as file:
+            file.write(log_lines)
+            filename = file.name
+
+        try:
+            events = parse_logs(filename, start_year=2025)
+
+            self.assertEqual(len(events), 2)
+            self.assertEqual(events[0]["timestamp"].year, 2025)
+            self.assertEqual(events[1]["timestamp"].year, 2026)
+            self.assertEqual(
+                (events[1]["timestamp"] - events[0]["timestamp"]).total_seconds(),
+                4
+            )
+        finally:
+            os.remove(filename)
+
     def test_invalid_user_parsing(self):
         log_line = (
             "Oct 27 08:14:00 ubuntu sshd[1234]: "

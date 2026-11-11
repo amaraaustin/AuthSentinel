@@ -11,8 +11,10 @@ SPRAY_USER_THRESHOLD = 3
 SPRAY_WINDOW_SECONDS = 120
 
 
-def parse_logs(log_file):
+def parse_logs(log_file, start_year=None):
     events = []
+    current_year = start_year if start_year is not None else datetime.now().year
+    previous_timestamp = None
 
     with open(log_file, "r") as file:
         for line in file:
@@ -41,12 +43,21 @@ def parse_logs(log_file):
                         ).replace(tzinfo=None)
                 else:
                     timestamp = (
-                        f"{datetime.now().year} "
-                        + " ".join(words[:3])
+                        f"{current_year} " + " ".join(words[:3])
                     )
                     login_time = datetime.strptime(
                         timestamp, "%Y %b %d %H:%M:%S"
                     )
+
+                    if (
+                        previous_timestamp is not None
+                        and previous_timestamp.month == 12
+                        and login_time.month == 1
+                    ):
+                        current_year += 1
+                        login_time = login_time.replace(year=current_year)
+
+                    previous_timestamp = login_time
 
                 repeated = re.search(
                     r"message repeated (\d+) times:",
@@ -232,6 +243,12 @@ def main():
         help="Password-spraying detection window in seconds"
     )
 
+    parser.add_argument(
+        "--year",
+        type=positive_integer,
+        help="Starting year for Linux logs without a year"
+    )
+
     args = parser.parse_args()
 
     try:
@@ -239,7 +256,7 @@ def main():
             from windows_parser import parse_windows_logs
             events = parse_windows_logs(args.file)
         else:
-            events = parse_logs(args.file)
+            events = parse_logs(args.file, start_year=args.year)
     except (FileNotFoundError, PermissionError, ValueError, KeyError) as error:
         parser.error(str(error))
 

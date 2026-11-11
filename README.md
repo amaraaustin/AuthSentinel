@@ -177,3 +177,22 @@ Some areas I would like to explore further include correlating failed and succes
 ## Responsible Use
 
 All authentication testing was performed in an isolated, authorized lab environment. The sample datasets included in this repository are synthetic.
+
+## Real-World Dataset Validation
+
+AuthSentinel was evaluated against the Loghub OpenSSH dataset, available on Zenodo.
+
+| Metric | Result |
+|---|---:|
+| Failed authentication events | 344,631 |
+| Unique source IPs | 1,008 |
+| Brute-force alerts | 1,347 |
+| Password-spraying alerts | 203 |
+| Automated tests | 18 passed |
+
+The analyzer supports historical Linux logs with an optional `--year` argument and automatically handles December-to-January year rollover.
+
+**Validation note:** Alerts indicate suspicious authentication patterns, not independently confirmed attacks. The original dataset year has not been verified.
+
+See [Full Validation Report](docs/VALIDATION.md) for methodology, limitations, and results.
+
