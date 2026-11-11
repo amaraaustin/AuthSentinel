@@ -5,28 +5,6 @@
 
 AuthSentinel analyzes failed authentication events to detect potential brute-force attacks and password spraying using configurable, time-based detection rules. It generates investigation-focused alerts and exports findings to JSON.
 
-## Real-World Validation Highlights
-
-AuthSentinel was tested against the publicly available Loghub OpenSSH dataset hosted on Zenodo.
-
-| Metric | Result |
-|---|---:|
-| Authentication failure events processed | **344,631** |
-| Unique source IP addresses | **1,008** |
-| Potential brute-force alerts | **1,347** |
-| Potential password-spraying alerts | **203** |
-| Automated unit tests | **18 passed** |
-
-The dataset contains repeated SSH authentication messages, which AuthSentinel expands into individual failure events before applying its detection rules.
-
-An independent count of expanded failure events matched the analyzer's total of 344,631.
-
-These results demonstrate the tool's ability to process a substantial external dataset and identify suspicious authentication patterns.
-
-**Validation note:** Alerts represent rule-based detections, not independently confirmed attacks. The original calendar year of the dataset has not been verified.
-
-[Read the full validation methodology, results, and limitations](docs/VALIDATION.md).
-
 ## Overview
 
 I built AuthSentinel to gain more hands-on experience with security monitoring, log analysis, and detection engineering.
@@ -184,6 +162,8 @@ I tested AuthSentinel using synthetic Linux and Windows authentication records, 
 
 I also created a clean log sample to verify that the tool does not generate alerts when the detection thresholds are not met.
 
+### Automated Testing
+
 The project includes 18 automated tests covering:
 
 - Brute-force and password-spraying detection
@@ -203,26 +183,28 @@ python3 -m unittest discover -v
 
 **Latest local result: 18 tests passed.**
 
-### External OpenSSH Dataset Validation
+### Real-World OpenSSH Dataset Validation
 
-The external dataset contained SSH authentication failures from multiple source IP addresses.
+To evaluate AuthSentinel beyond synthetic and lab-generated examples, I tested it against the publicly available [Loghub OpenSSH dataset hosted on Zenodo](https://zenodo.org/records/8196385).
 
-Using its default detection thresholds, AuthSentinel processed 344,631 expanded authentication failure events and produced:
+Using the default detection thresholds, AuthSentinel produced the following results:
 
-- **1,347 potential brute-force alerts**
-- **203 potential password-spraying alerts**
+| Metric | Result |
+|---|---:|
+| Authentication failure events processed | **344,631** |
+| Unique source IP addresses | **1,008** |
+| Potential brute-force alerts | **1,347** |
+| Potential password-spraying alerts | **203** |
 
-The tool identified **1,008 unique source IP addresses** in the processed failure events.
+The dataset contains repeated SSH authentication messages, which AuthSentinel expands into individual failure events before applying its detection rules.
 
-An independent count of expanded failure events matched AuthSentinel's output.
+An independent count of expanded failure events matched the analyzer's total of 344,631, supporting the consistency of event processing.
 
-This validates the consistency of the event expansion count, but does not establish ground-truth detection accuracy or false-positive rates.
+These results demonstrate the tool's ability to process a substantial external dataset and identify suspicious authentication patterns.
 
-The original dataset year has not been independently verified, so automatically assigned calendar years are provisional.
+**Validation limitations:** The alerts represent rule-based detections, not independently confirmed attacks. The results do not establish ground-truth detection accuracy or false-positive rates. The original calendar year of the dataset has not been independently verified, so automatically assigned years are provisional.
 
-**Dataset:** [Loghub OpenSSH Dataset — Zenodo](https://zenodo.org/records/8196385)
-
-**Detailed validation:** [docs/VALIDATION.md](docs/VALIDATION.md)
+**Detailed validation report:** [docs/VALIDATION.md](docs/VALIDATION.md)
 
 ## Project Files
 
