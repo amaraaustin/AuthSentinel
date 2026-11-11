@@ -82,8 +82,8 @@ flowchart TD
 Clone the repository:
 
 ```bash
-git clone https://github.com/amaraaustin/attack-detect-log-analyzer.git
-cd attack-detect-log-analyzer
+git clone https://github.com/amaraaustin/AuthSentinel.git
+cd AuthSentinel
 ```
 
 Analyze a Linux authentication log:
