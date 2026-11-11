@@ -1,39 +1,71 @@
 
 # AuthSentinel
 
-A Python-based authentication log analyzer that detects potential brute-force attacks and password spraying in Linux SSH logs and Windows Security Event CSV files.
+**A Python-based authentication attack detection and validation toolkit for Linux SSH and Windows Security Event logs.**
+
+AuthSentinel analyzes failed authentication events to detect potential brute-force attacks and password spraying using configurable, time-based detection rules. It generates investigation-focused alerts and exports findings to JSON.
+
+## Real-World Validation Highlights
+
+AuthSentinel was tested against the publicly available Loghub OpenSSH dataset hosted on Zenodo.
+
+| Metric | Result |
+|---|---:|
+| Authentication failure events processed | **344,631** |
+| Unique source IP addresses | **1,008** |
+| Potential brute-force alerts | **1,347** |
+| Potential password-spraying alerts | **203** |
+| Automated unit tests | **18 passed** |
+
+The dataset contains repeated SSH authentication messages, which AuthSentinel expands into individual failure events before applying its detection rules.
+
+An independent count of expanded failure events matched the analyzer's total of 344,631.
+
+These results demonstrate the tool's ability to process a substantial external dataset and identify suspicious authentication patterns.
+
+**Validation note:** Alerts represent rule-based detections, not independently confirmed attacks. The original calendar year of the dataset has not been verified.
+
+[Read the full validation methodology, results, and limitations](docs/VALIDATION.md).
 
 ## Overview
 
-I built AuthSentinel to get more hands-on experience with security monitoring, log analysis and detection engineering.
+I built AuthSentinel to gain more hands-on experience with security monitoring, log analysis, and detection engineering.
 
-The project focuses on two common authentication attacks: brute force, where repeated login attempts target the same account and password spraying, where an attacker attempts to access multiple accounts.
+The project focuses on two common authentication attacks:
 
-The tool reads authentication logs, extracts failed login events and applies time-based detection rules to identify suspicious patterns. It then generates alerts with information that would be useful during a security investigation.
+- **Brute force:** Repeated failed login attempts targeting the same account.
+- **Password spraying:** Failed login attempts targeting multiple accounts from the same source.
 
-I wanted to go beyond simply identifying failed logins, so I included configurable detection thresholds, JSON reporting and automated tests to check that the detection logic works as expected.
+The tool reads authentication logs, extracts failed login events, and applies time-based detection rules to identify suspicious patterns. It then generates alerts containing information useful during a security investigation.
+
+I wanted to go beyond simply counting failed logins, so I included configurable detection thresholds, JSON reporting, and automated tests to check that the detection logic works as expected.
+
+I also evaluated the tool against a large external SSH dataset to understand how it behaves beyond synthetic and lab-generated examples.
 
 ## Features
 
-- Parses Linux SSH authentication logs
-- Processes Windows Security Event ID 4625 records from CSV files
-- Detects potential brute-force attacks and password spraying
-- Supports configurable detection thresholds and time windows
-- Generates alerts with source IP addresses, affected accounts and timestamps
-- Includes recommended investigation actions
-- Exports findings to JSON
-- Handles malformed log entries without stopping the entire analysis
-- Includes 17 automated unit tests
+- Parses Linux SSH authentication logs.
+- Processes Windows Security Event ID 4625 records exported to CSV.
+- Detects potential brute-force attacks and password spraying.
+- Supports configurable detection thresholds and time windows.
+- Groups authentication events by source IP address and affected accounts.
+- Generates alerts containing timestamps and recommended investigation actions.
+- Exports detection results to JSON.
+- Expands repeated SSH authentication failure messages.
+- Supports historical Linux syslog timestamps using an optional starting year.
+- Automatically handles December-to-January year rollover.
+- Skips malformed log entries without stopping the analysis.
+- Includes 18 automated unit tests.
 
 ## How It Works
 
-The tool supports two log formats:
+AuthSentinel supports two input formats:
 
 **Linux:** SSH authentication logs containing failed password attempts.
 
 **Windows:** CSV files containing Windows Security Event ID 4625 (failed logon) records.
 
-The parsers extract the relevant information and convert it into a consistent event structure containing the source IP address, username, and timestamp.
+The parsers extract the source IP address, username, and timestamp into a consistent event structure.
 
 These events are passed to two detection functions.
 
@@ -43,33 +75,55 @@ The tool groups failed login attempts by source IP address and username.
 
 An alert is generated when the number of failed attempts reaches the configured threshold within the specified time window.
 
-Default settings:
+Default configuration:
+
 - 3 failed login attempts
 - 60-second time window
 
 ### Password-Spraying Detection
 
-The tool groups authentication failures by source IP address and checks how many different accounts were targeted within a specified time window.
+The tool groups authentication failures by source IP address and checks how many distinct usernames were targeted within a specified time window.
 
-Default settings:
-- 3 unique accounts
+Default configuration:
+
+- 3 unique usernames
 - 120-second time window
 
-Both detection rules can be adjusted when running the tool.
+Both detection rules support custom thresholds and time windows.
 
 ## Project Architecture
 
-```mermaid
-flowchart TD
-    A[Linux SSH Logs] --> C[Log Parsing]
-    B[Windows Security CSV] --> C
-    C --> D[Normalized Authentication Events]
-    D --> E[Brute-Force Detection]
-    D --> F[Password-Spraying Detection]
-    E --> G[Security Alerts]
-    F --> G
-    G --> H[Terminal Output]
-    G --> I[JSON Report]
+```text
+Authentication Logs
+        |
+        v
++-------------------------------+
+|        Log Parsers            |
+|-------------------------------|
+| Linux SSH | Windows Event CSV |
++-------------------------------+
+        |
+        v
++-------------------------------+
+| Normalized Authentication     |
+| Events (IP, User, Timestamp)  |
++-------------------------------+
+        |
+        v
++-------------------------------+
+|      Detection Engine         |
+|-------------------------------|
+| Brute Force | Password Spray  |
++-------------------------------+
+        |
+        v
++-------------------------------+
+|     Investigation Alerts      |
++-------------------------------+
+        |
+        +--------> Terminal Output
+        |
+        +--------> JSON Report
 ```
 
 ## Requirements
@@ -86,7 +140,7 @@ git clone https://github.com/amaraaustin/AuthSentinel.git
 cd AuthSentinel
 ```
 
-Analyze a Linux authentication log:
+Analyze Linux SSH authentication logs:
 
 ```bash
 python3 analyzer.py --file sample_auth.log --format linux
@@ -102,7 +156,7 @@ The Windows CSV should contain the following columns:
 
 `EventID,TimeCreated,IpAddress,TargetUserName`
 
-Adjust detection settings:
+Adjust detection thresholds:
 
 ```bash
 python3 analyzer.py --file sample_auth.log --format linux --brute-threshold 5 --brute-window 120 --spray-threshold 4 --spray-window 180
@@ -114,13 +168,23 @@ Generate a JSON report:
 python3 analyzer.py --file sample_auth.log --format linux --output security_report.json
 ```
 
+Analyze historical Linux logs using a specified starting year:
+
+```bash
+python3 analyzer.py --file sample_auth.log --format linux --year 2025
+```
+
+The `--year` argument specifies the starting year for Linux syslog entries that do not contain a year.
+
+For chronologically ordered logs, the parser advances the year automatically when timestamps cross from December into January.
+
 ## Testing and Validation
 
-I tested the tool using synthetic Linux and Windows authentication records, as well as real SSH authentication failures generated in an isolated Ubuntu lab.
+I tested AuthSentinel using synthetic Linux and Windows authentication records, real SSH authentication failures generated in an isolated Ubuntu lab, and a publicly available external OpenSSH dataset.
 
-I also created a clean log sample to confirm that the tool does not generate alerts when the detection thresholds are not met.
+I also created a clean log sample to verify that the tool does not generate alerts when the detection thresholds are not met.
 
-The project includes 17 automated tests covering:
+The project includes 18 automated tests covering:
 
 - Brute-force and password-spraying detection
 - Events that should not trigger alerts
@@ -129,19 +193,41 @@ The project includes 17 automated tests covering:
 - Linux log parsing
 - Alert information and JSON export
 - Invalid command-line configuration
+- December-to-January timestamp rollover
 
-To run the tests:
+Run the tests:
 
 ```bash
 python3 -m unittest discover -v
 ```
 
-All 17 tests passed during local validation.
+**Latest local result: 18 tests passed.**
+
+### External OpenSSH Dataset Validation
+
+The external dataset contained SSH authentication failures from multiple source IP addresses.
+
+Using its default detection thresholds, AuthSentinel processed 344,631 expanded authentication failure events and produced:
+
+- **1,347 potential brute-force alerts**
+- **203 potential password-spraying alerts**
+
+The tool identified **1,008 unique source IP addresses** in the processed failure events.
+
+An independent count of expanded failure events matched AuthSentinel's output.
+
+This validates the consistency of the event expansion count, but does not establish ground-truth detection accuracy or false-positive rates.
+
+The original dataset year has not been independently verified, so automatically assigned calendar years are provisional.
+
+**Dataset:** [Loghub OpenSSH Dataset — Zenodo](https://zenodo.org/records/8196385)
+
+**Detailed validation:** [docs/VALIDATION.md](docs/VALIDATION.md)
 
 ## Project Files
 
 | File | Purpose |
-|------|---------|
+|---|---|
 | `analyzer.py` | Linux log parsing, detection logic, and command-line interface |
 | `windows_parser.py` | Windows Security Event CSV parsing |
 | `reporter.py` | JSON report generation |
@@ -149,18 +235,27 @@ All 17 tests passed during local validation.
 | `sample_auth.log` | Sample Linux authentication events |
 | `windows_auth.csv` | Sample Windows authentication events |
 | `clean_auth.log` | Sample used to test non-detection |
+| `docs/VALIDATION.md` | External dataset validation methodology, results, and limitations |
 
 ## Limitations
 
-This is a rule-based detection project, not a complete security monitoring platform.
+AuthSentinel is a rule-based detection project, not a complete security monitoring platform.
 
-It currently focuses on failed authentication attempts and does not correlate them with successful logins. This means an alert indicates potentially suspicious activity rather than confirming that an account has been compromised.
+It currently focuses on failed authentication attempts and does not correlate them with successful logins. An alert therefore indicates potentially suspicious activity rather than confirming that an account has been compromised.
 
-The Linux detection was tested against real lab-generated SSH activity, while the Windows parser was tested using synthetic CSV data.
+The Windows parser has been tested using synthetic CSV data rather than independently collected real Windows Security Event exports.
 
-Traditional Linux syslog timestamps without a year are interpreted using the current year, and timestamps without timezone information are assumed to be UTC. Malformed individual records are skipped, but the tool does not currently report how many were skipped.
+Traditional Linux syslog timestamps do not contain a year. AuthSentinel uses the current year by default or a user-specified starting year, and supports December-to-January rollover. Automatically assigned years should not be treated as verified historical dates.
 
-The default thresholds are intended for demonstration and would need tuning for different environments to reduce false positives and missed detections.
+Timestamps without timezone information are interpreted as UTC.
+
+Malformed individual records are skipped, but the tool does not currently report how many were skipped.
+
+Repeated SSH messages may share a timestamp, which can affect time-window analysis.
+
+The default thresholds are intended for demonstration and require tuning for production environments to reduce false positives and missed detections.
+
+False-positive and false-negative rates have not been established.
 
 ## What I Learned
 
@@ -168,31 +263,24 @@ Working on this project gave me practical experience with Python log parsing, ti
 
 It also helped me understand why testing matters in detection engineering. A detection rule needs to identify suspicious behavior, but it also needs to avoid generating alerts for activity that does not meet the conditions.
 
-The project gave me a better understanding of how authentication events can be analyzed and presented as actionable security findings.
+Working with a large external dataset introduced additional challenges, particularly repeated log messages, large event volumes, and timestamps crossing calendar years.
+
+The project strengthened my understanding of how authentication events can be analyzed and presented as actionable security findings.
 
 ## Future Improvements
 
-Some areas I would like to explore further include correlating failed and successful logins, validating against real Windows Security Event exports, and integrating the generated alerts with a SIEM.
+Some areas I would like to explore further include:
+
+- Correlating failed and successful authentication events.
+- Validating against real Windows Security Event exports.
+- Measuring detection accuracy using labeled datasets.
+- Improving alert aggregation for large datasets.
+- Integrating generated alerts with a SIEM.
 
 ## Responsible Use
 
-All authentication testing was performed in an isolated, authorized lab environment. The sample datasets included in this repository are synthetic.
+All authentication activity generated for testing was performed in an isolated, authorized lab environment.
 
-## Real-World Dataset Validation
+The external OpenSSH dataset was obtained from a publicly available research dataset.
 
-AuthSentinel was evaluated against the Loghub OpenSSH dataset, available on Zenodo.
-
-| Metric | Result |
-|---|---:|
-| Failed authentication events | 344,631 |
-| Unique source IPs | 1,008 |
-| Brute-force alerts | 1,347 |
-| Password-spraying alerts | 203 |
-| Automated tests | 18 passed |
-
-The analyzer supports historical Linux logs with an optional `--year` argument and automatically handles December-to-January year rollover.
-
-**Validation note:** Alerts indicate suspicious authentication patterns, not independently confirmed attacks. The original dataset year has not been verified.
-
-See [Full Validation Report](docs/VALIDATION.md) for methodology, limitations, and results.
-
+The sample authentication datasets included in this repository are synthetic.
